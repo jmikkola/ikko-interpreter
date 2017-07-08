@@ -1,8 +1,16 @@
+-- Used for `deriving (Functor)` on the TopLevel type:
 {-# LANGUAGE DeriveFunctor #-}
+-- Used for the `forall a.` on the various boolean operation functions:
+{-# LANGUAGE Rank2Types #-}
+-- Used to get the function iShiftRL# and the types it works with
+{-# LANGUAGE MagicHash #-}
 
 module Interpreter where
 
+import GHC.Base (iShiftRL#, Int(I#))
+
 import Control.Monad.Free
+import Data.Bits (complement, (.&.), (.|.), xor, shiftL, shiftR)
 import Data.Map
 import qualified Data.Map as Map
 
@@ -126,10 +134,86 @@ evalExpr ctx expr = case expr of
     lookupArg ctx num
 
 applyUnary :: UnaryOp -> Value -> TL Value
-applyUnary = undefined
+applyUnary BitInvert value = case value of
+  IntVal i -> return (IntVal $ complement i)
+  _        -> exitError $ "cannot bit invert " ++ show value
+applyUnary BoolNot value = case value of
+  BoolVal b -> return (BoolVal $ not b)
+  _         -> exitError $ "cannot boolean not " ++ show value
 
 applyBinary :: BinOp -> Value -> Value -> TL Value
-applyBinary = undefined
+applyBinary op left right =
+  let fn = case op of
+            Plus      -> applyNumOp (+)
+            Minus     -> applyNumOp (-)
+            Times     -> applyNumOp (*)
+            Divide    -> applyNumFNs div (/)
+            Mod       -> applyIntFn mod
+            Power     -> applyNumFNs (^) (**)
+            BitAnd    -> applyIntFn (.&.)
+            BitOr     -> applyIntFn (.|.)
+            BitXor    -> applyIntFn xor
+            BoolAnd   -> applyBoolFn (&&)
+            BoolOr    -> applyBoolFn (||)
+            Eq        -> testEq True
+            NotEq     -> testEq False
+            Less      -> applyComparison (<)
+            LessEq    -> applyComparison (<=)
+            Greater   -> applyComparison (>)
+            GreaterEq -> applyComparison (>=)
+            LShift    -> applyIntFn shiftL
+            RShift    -> applyIntFn shiftR
+            RRShift   -> applyIntFn shiftRR
+  in fn left right
+
+shiftRR :: Int -> Int -> Int
+shiftRR (I# n) bits@(I# b) =
+  if bits < 0
+  then error "TODO: handle negative right shift"
+  else I# (iShiftRL# n b)
+
+testEq :: Bool -> Value -> Value -> TL Value
+--testEq eq (LambdaVal _) _             = return (BoolVal False)
+--testEq eq _             (LambdaVal _) = return (BoolVal False)
+testEq eq left          right         = return (BoolVal $ (left == right) == eq)
+
+applyBoolFn :: (Bool -> Bool -> Bool)
+               -> Value -> Value -> TL Value
+applyBoolFn fn (BoolVal l) (BoolVal r) = return (BoolVal $ fn l r)
+applyBoolFn _  left        right       =
+  exitError $ "both must be booleans: " ++ show left ++ " and " ++ show right
+
+applyIntFn :: (Int -> Int -> Int)
+              -> Value -> Value -> TL Value
+applyIntFn fn (IntVal l) (IntVal r) = return (IntVal $ fn l r)
+applyIntFn _  left       right      =
+  exitError $ "both must be integers: " ++ show left ++ " and " ++ show right
+
+applyNumOp :: (forall a. (Num a) => a -> a -> a)
+              -> Value -> Value -> TL Value
+applyNumOp fn left right = applyNumFNs fn fn left right
+
+applyNumFNs :: (Int -> Int -> Int) -> (Float -> Float -> Float)
+               -> Value -> Value -> TL Value
+applyNumFNs ifn _   (IntVal l) (IntVal r) =
+  return $ IntVal   (ifn l r)
+applyNumFNs _   ffn (FloatVal l) (FloatVal r) =
+  return $ FloatVal (ffn l r)
+applyNumFNs _ _ l r =
+  exitError $ "cannot apply a numeric operation to " ++ show l ++ " and " ++ show r
+
+applyComparison :: (forall a. (Ord a) => a -> a -> Bool)
+                   -> Value -> Value -> TL Value
+applyComparison fn (IntVal l) (IntVal r) =
+  return $ BoolVal (fn l r)
+applyComparison fn (FloatVal l) (FloatVal r) =
+  return $ BoolVal (fn l r)
+applyComparison fn (BoolVal l) (BoolVal r) =
+  return $ BoolVal (fn l r)
+applyComparison fn (StrVal l) (StrVal r) =
+  return $ BoolVal (fn l r)
+applyComparison _  left right =
+  exitError $ "cannot compare " ++ show left ++ " and " ++ show right
 
 callFunction :: Value -> [Value] -> TL Value
 callFunction = undefined
