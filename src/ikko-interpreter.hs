@@ -7,7 +7,7 @@ main = do
   success <- evalTopLevelIO example
   putStrLn $ show success
 
-example :: TL
+example :: TL ()
 example = do
   writeString "hello world\n"
   exitStatus 0
