@@ -7,8 +7,8 @@ module IR where
 data Statement
   = Return (Maybe Expression)
     -- Let handles both variable and function declarations
-  | Let String {- TypeRef -} Expression
-  | Assign [String] Expression
+  | Set String {- TypeRef -} Expression
+  -- | Assign [String] Expression
   | Block {- (Maybe TypeRef) -} [Statement]
   | Expr Expression
   | If Expression Statement (Maybe Statement)
