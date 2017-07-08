@@ -1,5 +1,9 @@
 module IR where
 
+import Data.List (intercalate)
+
+import TopLevel (TL)
+
 -- TODO: introduce the concept of Structure/Enum type definitions
 -- (and perhaps "newtype" support, though that could be done with a single-field structure)
 -- Let the compiler layer deal with resolving type aliases
@@ -31,6 +35,9 @@ data MatchExpression
   deriving (Eq, Show)
 -}
 
+class Display a where
+  display :: a -> String
+
 data Value
   = StrVal String
   | BoolVal Bool
@@ -38,8 +45,26 @@ data Value
   | FloatVal Float
   -- | StructVal TypeRef [(String, Expression)]
   | LambdaVal {- TypeRef -} [String] Statement
+  | BuiltIn String BuiltInFn
   | EmptyValue
   deriving (Eq, Show)
+
+instance Display Value where
+  display (StrVal s)         = s
+  display (BoolVal b)        = show b
+  display (IntVal i)         = show i
+  display (FloatVal f)       = show f
+  display (LambdaVal args _) = "fn (" ++ (intercalate ", " args) ++ ")"
+  display (BuiltIn name _)   = name ++ "()"
+  display EmptyValue         = "()"
+
+data BuiltInFn = BuiltInFn ([Value] -> TL Value)
+
+instance Show BuiltInFn where
+  show _ = "<builtin>"
+
+instance Eq BuiltInFn where
+  (==) _ _ = False
 
 data Expression
   = Paren Expression {- TypeRef -}
@@ -49,6 +74,7 @@ data Expression
   | Call {- TypeRef -} Expression [Expression]
   -- | Cast {- TypeRef -} Expression
   | Var {- TypeRef -} String
+  | GVar {- TypeRef -} String
   | Arg {- TypeRef -} Int
   -- | Access {- TypeRef -} Expression String
   -- | Lambda {- TypeRef -} [String] Statement

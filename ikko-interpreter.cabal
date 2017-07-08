@@ -16,4 +16,5 @@ executable ikko-interpreter
   default-language: Haskell2010
   other-modules:
                 IR,
-                Interpreter
+                Interpreter,
+                TopLevel

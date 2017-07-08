@@ -1,5 +1,3 @@
--- Used for `deriving (Functor)` on the TopLevel type:
-{-# LANGUAGE DeriveFunctor #-}
 -- Used for the `forall a.` on the various boolean operation functions:
 {-# LANGUAGE Rank2Types #-}
 -- Used to get the function iShiftRL# and the types it works with
@@ -9,49 +7,33 @@ module Interpreter where
 
 import GHC.Base (iShiftRL#, Int(I#))
 
-import Control.Monad.Free
 import Data.Bits (complement, (.&.), (.|.), xor, shiftL, shiftR)
 import Data.Map
 import qualified Data.Map as Map
 
 import IR
-
-data Toplevel next
-  = Exit Int
-  | WriteString String next
-  | Error String
-  deriving (Functor)
-
-type TL a = Free Toplevel a
-
-exitStatus :: Int -> TL a
-exitStatus status = Free (Exit status)
-
-exitSuccess :: TL a
-exitSuccess = exitStatus 0
-
-exitError :: String -> TL a
-exitError err = Free (Error err)
-
-writeString :: String -> TL ()
-writeString s = Free (WriteString s (Pure ()))
-
-evalTopLevelIO :: TL () -> IO Bool
-evalTopLevelIO (Pure _) = return True
-evalTopLevelIO (Free cmd) = case cmd of
-  Exit i -> do
-    return (i == 0)
-  WriteString s next -> do
-    putStr s
-    evalTopLevelIO next
-  Error err -> do
-    putStrLn err
-    return False
+import TopLevel
 
 data Context = Context { args :: [Value]
                        , locals :: Map String Value
+                       , globals :: Map String Value
                        }
 
+mainContext :: Context
+mainContext = Context { args=[], locals=Map.empty, globals=defaultGlobals }
+
+defaultGlobals :: Map String Value
+defaultGlobals =
+  Map.fromList
+  [builtIn "print" printBuiltin]
+
+builtIn :: String -> ([Value] -> TL Value) -> (String, Value)
+builtIn name fn = (name, BuiltIn name $ BuiltInFn fn)
+
+printBuiltin :: [Value] -> TL Value
+printBuiltin vals = do
+  _ <- mapM (writeString . display) vals
+  return EmptyValue
 
 setLocal :: String -> Value -> Context -> Context
 setLocal name value ctx = ctx { locals=newLocals }
@@ -127,9 +109,11 @@ evalExpr ctx expr = case expr of
   Call fnExpr argExprs -> do
     fnVal <- evalExpr ctx fnExpr
     argVals <- mapM (evalExpr ctx) argExprs
-    callFunction fnVal argVals
+    callFunction ctx fnVal argVals
   Var name ->
     lookupVar ctx name
+  GVar name ->
+    lookupGVar ctx name
   Arg num ->
     lookupArg ctx num
 
@@ -173,9 +157,9 @@ shiftRR (I# n) bits@(I# b) =
   else I# (iShiftRL# n b)
 
 testEq :: Bool -> Value -> Value -> TL Value
---testEq eq (LambdaVal _) _             = return (BoolVal False)
---testEq eq _             (LambdaVal _) = return (BoolVal False)
-testEq eq left          right         = return (BoolVal $ (left == right) == eq)
+testEq eq (LambdaVal _ _) _             = return (BoolVal False)
+testEq eq _               (LambdaVal _ _) = return (BoolVal False)
+testEq eq left            right         = return (BoolVal $ (left == right) == eq)
 
 applyBoolFn :: (Bool -> Bool -> Bool)
                -> Value -> Value -> TL Value
@@ -215,18 +199,25 @@ applyComparison fn (StrVal l) (StrVal r) =
 applyComparison _  left right =
   exitError $ "cannot compare " ++ show left ++ " and " ++ show right
 
-callFunction :: Value -> [Value] -> TL Value
-callFunction (LambdaVal argNames body) argVals =
+callFunction :: Context ->  Value -> [Value] -> TL Value
+callFunction context (LambdaVal argNames body) argVals =
   if length argNames /= length argVals
   then exitError "wrong number of arguments"
-  else let ctx = Context { args=argVals, locals=Map.empty }
+  else let ctx = context { args=argVals, locals=Map.empty }
        in interpretFnBody ctx (asBlock body)
-callFunction nonFunction _ =
+callFunction context (BuiltIn _ (BuiltInFn f)) argVals =
+  f argVals
+callFunction context nonFunction _ =
   exitError $ "cannot call " ++ show nonFunction ++ " as a function"
 
 lookupVar :: Context -> String -> TL Value
 lookupVar ctx name = case Map.lookup name (locals ctx) of
   Nothing  -> exitError $  "variable " ++ name ++ " not defined"
+  Just val -> return val
+
+lookupGVar :: Context -> String -> TL Value
+lookupGVar ctx name = case Map.lookup name (globals ctx) of
+  Nothing  -> exitError $  "global " ++ name ++ " not defined"
   Just val -> return val
 
 lookupArg :: Context -> Int -> TL Value
