@@ -179,7 +179,7 @@ applyNumOp fn left right = applyNumFNs fn fn left right
 
 applyNumFNs :: (Int -> Int -> Int) -> (Float -> Float -> Float)
                -> Value -> Value -> TL Value
-applyNumFNs ifn _   (IntVal l) (IntVal r) =
+applyNumFNs ifn _   (IntVal l)   (IntVal r)   =
   return $ IntVal   (ifn l r)
 applyNumFNs _   ffn (FloatVal l) (FloatVal r) =
   return $ FloatVal (ffn l r)
@@ -188,15 +188,15 @@ applyNumFNs _ _ l r =
 
 applyComparison :: (forall a. (Ord a) => a -> a -> Bool)
                    -> Value -> Value -> TL Value
-applyComparison fn (IntVal l) (IntVal r) =
+applyComparison fn (IntVal l)   (IntVal r)   =
   return $ BoolVal (fn l r)
 applyComparison fn (FloatVal l) (FloatVal r) =
   return $ BoolVal (fn l r)
-applyComparison fn (BoolVal l) (BoolVal r) =
+applyComparison fn (BoolVal l)  (BoolVal r)  =
   return $ BoolVal (fn l r)
-applyComparison fn (StrVal l) (StrVal r) =
+applyComparison fn (StrVal l)   (StrVal r)   =
   return $ BoolVal (fn l r)
-applyComparison _  left right =
+applyComparison _  left         right        =
   exitError $ "cannot compare " ++ show left ++ " and " ++ show right
 
 callFunction :: Context ->  Value -> [Value] -> TL Value
