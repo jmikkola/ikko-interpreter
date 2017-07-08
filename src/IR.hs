@@ -47,10 +47,11 @@ data Expression
   | Unary {- TypeRef -} UnaryOp Expression
   | Binary {- TypeRef -} BinOp Expression Expression
   | Call {- TypeRef -} Expression [Expression]
-  | Cast {- TypeRef -} Expression
+  -- | Cast {- TypeRef -} Expression
   | Var {- TypeRef -} String
-  | Access {- TypeRef -} Expression String
-  | Lambda {- TypeRef -} [String] Statement
+  | Arg {- TypeRef -} Int
+  -- | Access {- TypeRef -} Expression String
+  -- | Lambda {- TypeRef -} [String] Statement
   deriving (Eq, Show)
 
 data UnaryOp

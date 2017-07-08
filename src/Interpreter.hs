@@ -104,7 +104,41 @@ interpretBlock ctx (s:ss) = case s of
       else interpretBlock ctx ss
 
 evalExpr :: Context -> Expression -> TL Value
-evalExpr = undefined
+evalExpr ctx expr = case expr of
+  Paren inner ->
+    evalExpr ctx inner
+  Val value ->
+    return value
+  Unary op inner -> do
+    innerVal <- evalExpr ctx inner
+    applyUnary op innerVal
+  Binary op left right -> do
+    leftVal <- evalExpr ctx left
+    rightVal <- evalExpr ctx right
+    applyBinary op leftVal rightVal
+  Call fnExpr argExprs -> do
+    fnVal <- evalExpr ctx fnExpr
+    argVals <- mapM (evalExpr ctx) argExprs
+    callFunction fnVal argVals
+  Var name ->
+    lookupVar ctx name
+  Arg num ->
+    lookupArg ctx num
+
+applyUnary :: UnaryOp -> Value -> TL Value
+applyUnary = undefined
+
+applyBinary :: BinOp -> Value -> Value -> TL Value
+applyBinary = undefined
+
+callFunction :: Value -> [Value] -> TL Value
+callFunction = undefined
+
+lookupVar :: Context -> String -> TL Value
+lookupVar = undefined
+
+lookupArg :: Context -> Int -> TL Value
+lookupArg = undefined
 
 asBlock :: Statement -> [Statement]
 asBlock (Block stmts) = stmts
