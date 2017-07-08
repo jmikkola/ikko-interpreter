@@ -219,11 +219,23 @@ callFunction :: Value -> [Value] -> TL Value
 callFunction = undefined
 
 lookupVar :: Context -> String -> TL Value
-lookupVar = undefined
+lookupVar ctx name = case Map.lookup name (locals ctx) of
+  Nothing  -> exitError $  "variable " ++ name ++ " not defined"
+  Just val -> return val
 
 lookupArg :: Context -> Int -> TL Value
-lookupArg = undefined
+lookupArg ctx argNo = case index argNo (args ctx) of
+  Nothing  -> exitError "argument index out of boudns"
+  Just val -> return val
 
 asBlock :: Statement -> [Statement]
 asBlock (Block stmts) = stmts
 asBlock stmt          = [stmt]
+
+index :: Int -> [a] -> Maybe a
+index 0 (x:_)    = Just x
+index _ []       = Nothing
+index n l@(_:xs) =
+  if n < 0
+  then index (-n)    l
+  else index (n - 1) xs
