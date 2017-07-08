@@ -216,7 +216,13 @@ applyComparison _  left right =
   exitError $ "cannot compare " ++ show left ++ " and " ++ show right
 
 callFunction :: Value -> [Value] -> TL Value
-callFunction = undefined
+callFunction (LambdaVal argNames body) argVals =
+  if length argNames /= length argVals
+  then exitError "wrong number of arguments"
+  else let ctx = Context { args=argVals, locals=Map.empty }
+       in interpretFnBody ctx (asBlock body)
+callFunction nonFunction _ =
+  exitError $ "cannot call " ++ show nonFunction ++ " as a function"
 
 lookupVar :: Context -> String -> TL Value
 lookupVar ctx name = case Map.lookup name (locals ctx) of

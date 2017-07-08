@@ -37,7 +37,7 @@ data Value
   | IntVal Int
   | FloatVal Float
   -- | StructVal TypeRef [(String, Expression)]
-  -- | LambdaVal TypeRef [String] Statement
+  | LambdaVal {- TypeRef -} [String] Statement
   | EmptyValue
   deriving (Eq, Show)
 
