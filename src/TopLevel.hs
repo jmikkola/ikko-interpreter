@@ -14,16 +14,19 @@ data Toplevel next
 type TL a = Free Toplevel a
 
 exitStatus :: Int -> TL a
-exitStatus status = Free (Exit status)
+exitStatus status = liftFree (Exit status)
 
 exitSuccess :: TL a
 exitSuccess = exitStatus 0
 
 exitError :: String -> TL a
-exitError err = Free (Error err)
+exitError err = liftFree (Error err)
 
 writeString :: String -> TL ()
-writeString s = Free (WriteString s (Pure ()))
+writeString s = liftFree (WriteString s ())
+
+liftFree :: (Functor f) => f r -> Free f r
+liftFree command = Free (fmap Pure command)
 
 evalTopLevelIO :: TL a -> IO Bool
 evalTopLevelIO (Pure _) = return True
