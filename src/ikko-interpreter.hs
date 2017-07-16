@@ -2,11 +2,11 @@ import Control.Monad.Free
 
 import IR
 import Interpreter
-import TopLevel (FO, runIO, writeString, exitStatus)
+import TopLevel (FO, runIO, writeString, exitStatus, updateGlobal, Context)
 
 main :: IO ()
 main = do
-  success <- runIO mainContext example2
+  success <- runIO fibContext fibExample
   putStrLn $ show success
 
 example :: FO a b
@@ -23,3 +23,23 @@ example2 =
         ]
       expr = Call fnExpr argExprs
   in evalExpr expr
+
+fibExample :: FO Value Value
+fibExample =
+  let fibCall = Call (GVar "fib") [intVal 35]
+  in evalExpr $ Call (GVar "print") [fibCall, Val $ StrVal "\n"]
+
+fibContext :: Context Value
+fibContext =
+  let
+    testExpr = Binary Less (Arg 0) (intVal 2)
+    ifCase = Block [Return $ Just $ intVal 1]
+    callExpr x = Call (GVar "fib") [Binary Minus (Arg 0) (intVal x)]
+    recExpr = Binary Plus (callExpr 1) (callExpr 2)
+    elseCase = Block [Return $ Just recExpr]
+    branch = If testExpr ifCase (Just elseCase)
+    fibFn = LambdaVal ["n"] branch
+  in updateGlobal mainContext "fib" fibFn
+
+intVal :: Int -> Expression
+intVal = Val . IntVal
