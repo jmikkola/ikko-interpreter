@@ -80,9 +80,6 @@ data Context a
     , locals :: Map String a
     }
 
---mainContext :: Context a
---mainContext = Context {args=[], globals=Map.empty, locals=Map.empty}
-
 type Globals a = Map String a
 
 runIO :: Context a -> FO a b -> IO Bool
