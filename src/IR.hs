@@ -2,7 +2,7 @@ module IR where
 
 import Data.List (intercalate)
 
-import TopLevel (TL)
+import TopLevel (TL, TFunc)
 
 -- TODO: introduce the concept of Structure/Enum type definitions
 -- (and perhaps "newtype" support, though that could be done with a single-field structure)
@@ -58,7 +58,7 @@ instance Display Value where
   display (BuiltIn name _)   = name ++ "()"
   display EmptyValue         = "()"
 
-data BuiltInFn = BuiltInFn ([Value] -> TL Value)
+data BuiltInFn = BuiltInFn (TFunc Value Value)
 
 instance Show BuiltInFn where
   show _ = "<builtin>"
